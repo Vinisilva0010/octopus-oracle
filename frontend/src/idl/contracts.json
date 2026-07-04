@@ -1,0 +1,405 @@
+{
+  "address": "GUCH4uCVy2x3k88Mwn1j43zShVQXA8SVpZJprCF1cPLL",
+  "metadata": {
+    "name": "contracts",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "initialize_market",
+      "discriminator": [
+        35,
+        35,
+        189,
+        193,
+        155,
+        48,
+        170,
+        203
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "fixture_id",
+          "type": "u64"
+        },
+        {
+          "name": "market_type",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "place_position",
+      "discriminator": [
+        218,
+        31,
+        90,
+        75,
+        101,
+        209,
+        5,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "choice",
+          "type": "u8"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolve_market",
+      "discriminator": [
+        155,
+        23,
+        80,
+        173,
+        46,
+        74,
+        23,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "txline_merkle_roots"
+        },
+        {
+          "name": "txline_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "ts",
+          "type": "i64"
+        },
+        {
+          "name": "fixture_summary",
+          "type": {
+            "defined": {
+              "name": "ScoresBatchSummary"
+            }
+          }
+        },
+        {
+          "name": "fixture_proof",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "ProofNode"
+              }
+            }
+          }
+        },
+        {
+          "name": "main_tree_proof",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "ProofNode"
+              }
+            }
+          }
+        },
+        {
+          "name": "predicate",
+          "type": {
+            "defined": {
+              "name": "TraderPredicate"
+            }
+          }
+        },
+        {
+          "name": "stat_a",
+          "type": {
+            "defined": {
+              "name": "StatTerm"
+            }
+          }
+        },
+        {
+          "name": "winning_choice",
+          "type": "u8"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "Position",
+      "discriminator": [
+        170,
+        188,
+        143,
+        228,
+        122,
+        64,
+        247,
+        208
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MarketAlreadyResolved",
+      "msg": "Este mercado já foi resolvido."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidAmount",
+      "msg": "O valor da posição deve ser maior que zero."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidMarketAuthority",
+      "msg": "Apenas a autoridade do mercado pode resolver esta partida."
+    }
+  ],
+  "types": [
+    {
+      "name": "Comparison",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "GreaterThan"
+          },
+          {
+            "name": "LessThan"
+          },
+          {
+            "name": "EqualTo"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "fixture_id",
+            "type": "u64"
+          },
+          {
+            "name": "market_type",
+            "type": "u8"
+          },
+          {
+            "name": "is_resolved",
+            "type": "bool"
+          },
+          {
+            "name": "winning_choice",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Position",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "choice",
+            "type": "u8"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProofNode",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "is_left",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScoresBatchSummary",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StatTerm",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "key",
+            "type": "u16"
+          },
+          {
+            "name": "value",
+            "type": "i32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TraderPredicate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "threshold",
+            "type": "i32"
+          },
+          {
+            "name": "comparison",
+            "type": {
+              "defined": {
+                "name": "Comparison"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
