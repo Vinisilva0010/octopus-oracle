@@ -9,7 +9,7 @@ skip-lint = false
 contracts = "GUCH4uCVy2x3k88Mwn1j43zShVQXA8SVpZJprCF1cPLL"
 
 [provider]
-cluster = "localnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
