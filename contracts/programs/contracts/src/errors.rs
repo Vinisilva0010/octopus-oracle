@@ -6,4 +6,6 @@ pub enum OracleError {
     MarketAlreadyResolved,
     #[msg("O valor da posição deve ser maior que zero.")]
     InvalidAmount,
+    #[msg("Apenas a autoridade do mercado pode resolver esta partida.")]
+    InvalidMarketAuthority,
 }
