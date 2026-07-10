@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 pub mod errors;
 pub mod instructions;
 pub mod state;
-pub mod txline_types; // Nova inclusão
+pub mod txline_types; 
 
 use instructions::*;
 use txline_types::{ScoresBatchSummary, ProofNode, TraderPredicate, StatTerm};
@@ -30,7 +30,6 @@ pub mod contracts {
         exec_place_position(ctx, choice, amount)
     }
 
-    // Nova instrução pública de resolução via CPI
     pub fn resolve_market(
         ctx: Context<ResolveMarket>,
         ts: i64,
@@ -38,7 +37,7 @@ pub mod contracts {
         fixture_proof: Vec<ProofNode>,
         main_tree_proof: Vec<ProofNode>,
         predicate: TraderPredicate,
-        stat_a: StatTerm,
+        stat_a: StatTerm, 
         winning_choice: u8,
     ) -> Result<()> {
         exec_resolve_market(
