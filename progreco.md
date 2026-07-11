@@ -1,3 +1,40 @@
+# Octopus Oracle - Status Absoluto do Sistema
+
+## 1. Contexto do Projeto
+- **Objetivo:** Vencer o hackathon da Colosseum (Superteam).
+- **Produto:** Plataforma de Prediction Market de alto nível (Copa do Mundo) focado em eventos ao vivo (Live Betting) com liquidação on-chain via oráculo TxLINE.
+- **Diferenciais:** Profundidade de mercados (Gols, Escanteios, Cartões usando Stat Period Encoding da TxLINE), UI/UX imersiva, Receipt View com prova criptográfica (Árvore de Merkle) e gamificação (CrowdBrain Portfolio/Streak).
+
+## 2. Smart Contracts (Rust / Anchor) - [ESTÁVEL E BLINDADO]
+- **Layout de Memória:** Structs (`StatTerm`, `ScoresBatchSummary`) alinhadas perfeitamente ao IDL da TxLINE (Borsh). Erro 102 resolvido.
+- **PDA Routing:** Contas corretas mapeadas. Semente do Merkle Root da TxLINE fixada em `HYo6qqMUXRaMit2YF6q6YEh5K1mWYBFC3pDZrV2HZN5f`. Erro 2006 resolvido.
+- **CPI (Cross-Program Invocation):** Discriminator de `validate_stat` fixado. Contrato pronto para engolir as resoluções numéricas de qualquer chave da TxLINE (Key 1, 2, 3, 4, 7, 8).
+
+## 3. Backend e Infraestrutura (Python) - [EM EXPANSÃO]
+- **Worker de Liquidação (`resolve_market.py`):** Consome eventos ao vivo via SSE (`/scores/stream`), extrai o payload criptográfico, empacota em bytes exatos (`struct.pack`) e dispara a transação pro contrato Rust. Resolve o Erro 6010 (TimestampMismatch).
+- **Servidor de Dados do Frontend (`api_server.py`):** Servidor FastAPI rodando na porta `127.0.0.1:8000`. Conectado ao SDK da TxLINE (`client.fixtures().snapshot()`) para servir dados REAIS pré-jogo e ao vivo para o Next.js, eliminando completamente os mocks.
+
+## 4. Frontend (Next.js 16 + Tailwind) - [ESTRUTURAÇÃO DINÂMICA]
+- **Estado Global:** Zustand implementado (`useMarketStore.ts`) para sincronizar a API Python em tempo real sem travar a interface.
+- **Home Page:** Consome `/api/markets/live` e renderiza os cards dinamicamente. Exige Phantom Wallet conectada.
+- **Market Detail (`market/[id]`):** Interface dividida em abas técnicas (Gols, Escanteios, Cartões). Painel de "Bet Slip" calculando retorno potencial em SOL.
+- **Próximos Passos Obrigatórios:** 
+  1. Expandir a rota do FastAPI para mapear e entregar todas as odds/multiplicadores reais do SDK da TxLINE.
+  2. Implementar `@coral-xyz/anchor` no botão de aposta para assinar a transação (instrução `place_position`) e fazer o escrow do SOL no contrato.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Smart Contracts (Rust/Anchor)
 Alinhamento de Memória (Borsh): O arquivo txline_types.rs foi completamente reescrito para espelhar o IDL extraído diretamente do repositório oficial da TxLINE. Isso eliminou permanentemente o erro 102 (InstructionDidNotDeserialize).
 
@@ -32,14 +69,3 @@ A blockchain valida o repasse e liquida o mercado on-chain.
 
 
 
-parte de conectar esse backend no front
-
-
-ja tinha uba base mas estamos reformulando 
-
-
-## Status Atual - Fase 2 (Frontend Data Integration)
-- **Motor de Dados (Zustand):** Loja global criada (`useMarketStore.ts`) para lidar com o fluxo assíncrono da API da TxLINE sem travar a interface.
-- **Home Page Dinâmica:** Removidos os mocks de teste. A `page.tsx` agora renderiza exclusivamente os eventos retornados pelo backend Python.
-- **Roteamento Protegido:** Os cards das partidas agora direcionam para `market/[id]` dinamicamente, e o botão de acesso aos mercados exige a conexão prévia da Phantom Wallet para ser ativado.
-- **Próxima Etapa:** Estruturar a página interna de mercados (`market/[id]`), mapear os tipos de aposta (Gols, Cartões, Escanteios) e preparar a montagem da transação Anchor para Escrow.
