@@ -28,3 +28,18 @@ O payload é serializado em bytes e a transação é disparada.
 O contrato Rust recebe, valida as contas, e faz a CPI para a TxLINE.
 
 A blockchain valida o repasse e liquida o mercado on-chain.
+
+
+
+
+parte de conectar esse backend no front
+
+
+ja tinha uba base mas estamos reformulando 
+
+
+## Status Atual - Fase 2 (Frontend Data Integration)
+- **Motor de Dados (Zustand):** Loja global criada (`useMarketStore.ts`) para lidar com o fluxo assíncrono da API da TxLINE sem travar a interface.
+- **Home Page Dinâmica:** Removidos os mocks de teste. A `page.tsx` agora renderiza exclusivamente os eventos retornados pelo backend Python.
+- **Roteamento Protegido:** Os cards das partidas agora direcionam para `market/[id]` dinamicamente, e o botão de acesso aos mercados exige a conexão prévia da Phantom Wallet para ser ativado.
+- **Próxima Etapa:** Estruturar a página interna de mercados (`market/[id]`), mapear os tipos de aposta (Gols, Cartões, Escanteios) e preparar a montagem da transação Anchor para Escrow.
