@@ -69,3 +69,14 @@ A blockchain valida o repasse e liquida o mercado on-chain.
 
 
 
+## Status Atual - Fase 4 (Motor de Odds / Backend)
+- **Motor de Odds Estrito:** Rota `/api/markets/{fixture_id}` implementada no servidor `api_server.py`.
+- **Zero Mocks:** A arquitetura agora consome as odds diretamente de `txline-dev.txodds.com/api/fixtures/{fixture_id}/markets`. Se a rede não fornecer os dados, o mercado não abre. Compliance total com a exigência de dados on-chain.
+- **Próxima Etapa:** Analisar o output de odds impresso no terminal para mapear dinamicamente os valores na interface do Next.js e integrar a chamada RPC com `@coral-xyz/anchor`.
+
+
+
+## Status Atual - Fase 5 (Integração de Estado de Odds)
+- **Motor de Estado:** Zustand (`useMarketStore.ts`) expandido para suportar a busca assíncrona de odds reais (`fetchFixtureOdds`) a partir do servidor FastAPI.
+- **Preparação de Interface:** O frontend agora possui a infraestrutura de dados para substituir os componentes estáticos por multiplicadores dinâmicos providos pela TxLINE.
+- **Próxima Etapa Obrigatória:** Renderizar o array de `currentOdds` na tela `market/[id]/page.tsx` sem hardcode e integrar a chamada RPC (`@coral-xyz/anchor`) para o disparo da transação de aposta.
