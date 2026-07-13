@@ -10,6 +10,7 @@ import { useMarketStore } from '@/store/useMarketStore';
 type Tab = 'GOALS' | 'CORNERS' | 'CARDS';
 
 export default function MarketDetail() {
+  const [isMounted, setIsMounted] = useState(false);
   const { id } = useParams();
   const router = useRouter();
   const { connected, publicKey } = useWallet();
@@ -22,13 +23,18 @@ export default function MarketDetail() {
 
   const game = activeMarkets.find((m) => m.fixtureId === Number(id));
 
+  // Trava contra erro de hidratação do Next.js
   useEffect(() => {
-    if (id) {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (id && isMounted) {
       fetchFixtureOdds(id as string);
     }
-  }, [id, fetchFixtureOdds]);
+  }, [id, fetchFixtureOdds, isMounted]);
 
-  const handlePlacePosition = async () => {
+ const handlePlacePosition = async () => {
     if (!connected || !publicKey) return alert("Conecte a carteira da Phantom primeiro.");
     if (!selectedOdd || !betAmount || Number(betAmount) <= 0) return alert("Selecione um mercado e defina o valor.");
     if (!game) return;
@@ -40,30 +46,58 @@ export default function MarketDetail() {
       const amountInLamports = new BN(Number(betAmount) * web3.LAMPORTS_PER_SOL);
       const fixtureIdBN = new BN(game.fixtureId);
       const marketKey = selectedOdd.key;
+      const marketType = 1; // O IDL exige o market_type (u8)
 
+      // CORREÇÃO AQUI: Adicionando o marketType na semente do PDA para bater com o Rust
       const [marketPda] = web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("market"), fixtureIdBN.toArrayLike(Buffer, "le", 8)],
+        [
+          Buffer.from("market"), 
+          fixtureIdBN.toArrayLike(Buffer, "le", 8),
+          Buffer.from([marketType])
+        ],
         program.programId
       );
 
-      console.log(`[ANCHOR CPI] Disparando transação para o mercado ${game.fixtureId}...`);
+      const marketAccountInfo = await connection.getAccountInfo(marketPda);
+      const transaction = new web3.Transaction();
 
-      const tx = await program.methods
-        .placePosition(fixtureIdBN, marketKey, amountInLamports)
+      if (marketAccountInfo === null) {
+        console.log(`[ANCHOR] PDA não encontrado. Empilhando initializeMarket...`);
+        const initInstruction = await program.methods
+          .initializeMarket(fixtureIdBN, marketType)
+          .accounts({
+            authority: publicKey,
+            market: marketPda,
+            systemProgram: web3.SystemProgram.programId,
+          })
+          .instruction();
+          
+        transaction.add(initInstruction);
+      }
+
+      console.log(`[ANCHOR] Empilhando placePosition...`);
+      const placeInstruction = await program.methods
+        .placePosition(marketKey, amountInLamports)
         .accounts({
           user: publicKey,
           market: marketPda,
           systemProgram: web3.SystemProgram.programId,
         })
-        .rpc();
+        .instruction();
+        
+      transaction.add(placeInstruction);
 
-      alert(`Transação on-chain confirmada! Signature: ${tx}`);
+      const txSignature = await provider.sendAndConfirm(transaction);
+      alert(`Transação on-chain confirmada! Signature: ${txSignature}`);
       
     } catch (error) {
       console.error("Erro crítico na transação Anchor:", error);
-      alert("Falha ao assinar a transação. Verifique o console ou seu saldo de Devnet SOL.");
+      alert("Falha ao assinar a transação. Verifique o console para detalhes.");
     }
   };
+
+  // Se a tela ainda não montou, não desenha nada (evita o erro do Next.js)
+  if (!isMounted) return null;
 
   if (!game) {
     return (

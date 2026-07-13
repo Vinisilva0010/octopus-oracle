@@ -80,3 +80,11 @@ A blockchain valida o repasse e liquida o mercado on-chain.
 - **Motor de Estado:** Zustand (`useMarketStore.ts`) expandido para suportar a busca assíncrona de odds reais (`fetchFixtureOdds`) a partir do servidor FastAPI.
 - **Preparação de Interface:** O frontend agora possui a infraestrutura de dados para substituir os componentes estáticos por multiplicadores dinâmicos providos pela TxLINE.
 - **Próxima Etapa Obrigatória:** Renderizar o array de `currentOdds` na tela `market/[id]/page.tsx` sem hardcode e integrar a chamada RPC (`@coral-xyz/anchor`) para o disparo da transação de aposta.
+
+
+
+## Status Atual - Fase 6 (Integração Web3 / Frontend)
+- **Integração Anchor:** Interface conectada ao smart contract na Solana. O botão "Assinar Transação" agora aciona a Phantom via RPC.
+- **Estrutura de Transação:** O frontend deriva o PDA do mercado em tempo real, converte o valor em SOL para Lamports e dispara a chamada `place_position` mapeando a Key correta do Stat Period da TxLINE.
+- **Estado do Frontend:** Completo e roteando os dados do backend AMM diretamente para o contrato.
+- **Próxima Etapa Obrigatória:** Testar o envio real da transação clicando no botão para garantir que o contrato Rust está recebendo os fundos corretamente na Devnet.
