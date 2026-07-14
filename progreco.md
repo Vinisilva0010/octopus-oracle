@@ -88,3 +88,7 @@ A blockchain valida o repasse e liquida o mercado on-chain.
 - **Estrutura de Transação:** O frontend deriva o PDA do mercado em tempo real, converte o valor em SOL para Lamports e dispara a chamada `place_position` mapeando a Key correta do Stat Period da TxLINE.
 - **Estado do Frontend:** Completo e roteando os dados do backend AMM diretamente para o contrato.
 - **Próxima Etapa Obrigatória:** Testar o envio real da transação clicando no botão para garantir que o contrato Rust está recebendo os fundos corretamente na Devnet.
+
+
+
+- **Sucesso na Integração Web3:** O erro `ConstraintSeeds` foi resolvido alinhando a derivação do PDA no frontend (`fixture_id` + `market_type`). A transação atômica (inicialização + aposta) foi confirmada com sucesso na Devnet. Fluxo de entrada de capital 100% finalizado.

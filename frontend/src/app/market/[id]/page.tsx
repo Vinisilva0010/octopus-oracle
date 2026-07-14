@@ -7,7 +7,7 @@ import { Program, AnchorProvider, web3, BN } from '@coral-xyz/anchor';
 import idl from '@/idl/contracts.json';
 import { useMarketStore } from '@/store/useMarketStore';
 
-type Tab = 'GOALS' | 'CORNERS' | 'CARDS';
+type Tab = 'DEGEN' | 'MATCH_WINNER' | 'GOALS' | 'CORNERS' | 'CARDS';
 
 export default function MarketDetail() {
   const [isMounted, setIsMounted] = useState(false);
@@ -17,13 +17,13 @@ export default function MarketDetail() {
   const { connection } = useConnection();
   const { activeMarkets, fetchFixtureOdds, currentOdds, isLoadingOdds } = useMarketStore();
   
-  const [activeTab, setActiveTab] = useState<Tab>('GOALS');
+  const [activeTab, setActiveTab] = useState<Tab>('DEGEN');
   const [betAmount, setBetAmount] = useState<string>('');
   const [selectedOdd, setSelectedOdd] = useState<{ id: string; key: number; label: string; multiplier: number } | null>(null);
-
+const [txNotification, setTxNotification] = useState<{show: boolean, signature: string}>({show: false, signature: ''});
+const [isProcessing, setIsProcessing] = useState(false);
   const game = activeMarkets.find((m) => m.fixtureId === Number(id));
 
-  // Trava contra erro de hidratação do Next.js
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -34,21 +34,22 @@ export default function MarketDetail() {
     }
   }, [id, fetchFixtureOdds, isMounted]);
 
- const handlePlacePosition = async () => {
+  const handlePlacePosition = async () => {
     if (!connected || !publicKey) return alert("Conecte a carteira da Phantom primeiro.");
     if (!selectedOdd || !betAmount || Number(betAmount) <= 0) return alert("Selecione um mercado e defina o valor.");
     if (!game) return;
 
     try {
+      setIsProcessing(true);
       const provider = new AnchorProvider(connection, (window as any).solana, AnchorProvider.defaultOptions());
       const program = new Program(idl as any, provider);
 
       const amountInLamports = new BN(Number(betAmount) * web3.LAMPORTS_PER_SOL);
       const fixtureIdBN = new BN(game.fixtureId);
-      const marketKey = selectedOdd.key;
-      const marketType = 1; // O IDL exige o market_type (u8)
 
-      // CORREÇÃO AQUI: Adicionando o marketType na semente do PDA para bater com o Rust
+      const marketKey = selectedOdd.key;
+      const marketType = selectedOdd.key; 
+
       const [marketPda] = web3.PublicKey.findProgramAddressSync(
         [
           Buffer.from("market"), 
@@ -62,7 +63,7 @@ export default function MarketDetail() {
       const transaction = new web3.Transaction();
 
       if (marketAccountInfo === null) {
-        console.log(`[ANCHOR] PDA não encontrado. Empilhando initializeMarket...`);
+        console.log(`[ANCHOR] Empilhando initializeMarket para a chave ${marketType}...`);
         const initInstruction = await program.methods
           .initializeMarket(fixtureIdBN, marketType)
           .accounts({
@@ -88,15 +89,40 @@ export default function MarketDetail() {
       transaction.add(placeInstruction);
 
       const txSignature = await provider.sendAndConfirm(transaction);
-      alert(`Transação on-chain confirmada! Signature: ${txSignature}`);
+      setTxNotification({ show: true, signature: txSignature });
+
+      // Dispara o recibo da aposta para o PostgreSQL em background
+      try {
+        await fetch('http://127.0.0.1:8000/api/portfolio/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tx_signature: txSignature,
+            wallet: publicKey.toBase58(),
+            fixture_id: game.fixtureId,
+            game_title: `${game.homeTeam} vs ${game.awayTeam}`,
+            market_key: selectedOdd.key,
+            market_label: selectedOdd.label,
+            amount_sol: Number(betAmount),
+            multiplier: selectedOdd.multiplier
+          })
+        });
+      } catch (dbError) {
+        console.error("Aposta feita on-chain, mas falhou ao indexar no BD local:", dbError);
+      }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro crítico na transação Anchor:", error);
-      alert("Falha ao assinar a transação. Verifique o console para detalhes.");
+      if (error.message?.includes("0x0") || error.message?.includes("already in use")) {
+        alert("Você já possui uma aposta aberta nesta opção. O contrato atual permite apenas uma entrada por mercado.");
+      } else {
+        alert("Falha ao assinar a transação. Verifique se você tem SOL suficiente para as taxas ou se rejeitou na carteira.");
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  // Se a tela ainda não montou, não desenha nada (evita o erro do Next.js)
   if (!isMounted) return null;
 
   if (!game) {
@@ -107,7 +133,7 @@ export default function MarketDetail() {
     );
   }
 
-  const marketData = currentOdds?.data || { GOALS: [], CORNERS: [], CARDS: [] };
+  const marketData = currentOdds?.data || { DEGEN: [], MATCH_WINNER: [], GOALS: [], CORNERS: [], CARDS: [] };
 
   return (
     <main className="min-h-screen bg-black text-white p-8">
@@ -129,29 +155,30 @@ export default function MarketDetail() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <div className="flex space-x-4 border-b border-gray-800 mb-6 pb-2">
-              {(['GOALS', 'CORNERS', 'CARDS'] as Tab[]).map((tab) => (
+            
+            <div className="flex space-x-4 border-b border-gray-800 mb-6 pb-2 overflow-x-auto">
+              {(['DEGEN', 'MATCH_WINNER', 'GOALS', 'CORNERS', 'CARDS'] as Tab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => { setActiveTab(tab); setSelectedOdd(null); }}
-                  className={`pb-2 px-4 font-bold ${activeTab === tab ? 'text-white border-b-2 border-white' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`pb-2 px-4 font-bold whitespace-nowrap ${activeTab === tab ? 'text-white border-b-2 border-white' : 'text-gray-500 hover:text-gray-300'}`}
                 >
-                  {tab === 'GOALS' ? 'Gols & Resultado' : tab === 'CORNERS' ? 'Escanteios' : 'Cartões'}
+                  {tab === 'DEGEN' ? '🔥 DEGEN (Narrativas)' : tab === 'MATCH_WINNER' ? 'Vencedor' : tab === 'GOALS' ? 'Gols' : tab === 'CORNERS' ? 'Escanteios' : 'Cartões'}
                 </button>
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {marketData[activeTab]?.map((odd: any) => (
                 <button
                   key={odd.id}
                   onClick={() => setSelectedOdd(odd)}
-                  className={`p-4 rounded-lg border text-left flex justify-between items-center transition-colors ${
-                    selectedOdd?.id === odd.id ? 'bg-blue-900/30 border-blue-500' : 'bg-gray-900 border-gray-800 hover:border-gray-600'
+                  className={`p-4 rounded-lg border text-left flex flex-col justify-center transition-colors ${
+                    selectedOdd?.id === odd.id ? 'bg-purple-900/40 border-purple-500' : 'bg-gray-900 border-gray-800 hover:border-gray-600'
                   }`}
                 >
-                  <span className="font-semibold">{odd.label}</span>
-                  <span className="font-mono text-blue-400">{odd.multiplier.toFixed(2)}x</span>
+                  <span className={`font-semibold text-sm mb-2 ${activeTab === 'DEGEN' ? 'text-purple-400' : ''}`}>{odd.label}</span>
+                  <span className="font-mono text-white font-bold">{odd.multiplier.toFixed(2)}x</span>
                 </button>
               ))}
             </div>
@@ -160,7 +187,7 @@ export default function MarketDetail() {
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 h-fit">
             <h3 className="text-xl font-bold mb-6 border-b border-gray-800 pb-4">Bet Slip</h3>
             {!selectedOdd ? (
-              <div className="text-gray-500 text-center py-8">Selecione uma odd ao lado.</div>
+              <div className="text-gray-500 text-center py-8">Selecione uma opção ao lado para simular.</div>
             ) : (
               <div className="flex flex-col space-y-6">
                 <div>
@@ -187,16 +214,34 @@ export default function MarketDetail() {
                   </span>
                 </div>
                 <button
-                  onClick={handlePlacePosition}
-                  className="w-full bg-white text-black font-bold py-4 rounded hover:bg-gray-200 transition-colors"
-                >
-                  Assinar Transação
-                </button>
+                onClick={handlePlacePosition}
+                disabled={isProcessing}
+                className={`w-full font-bold py-4 rounded transition-colors ${
+                  isProcessing ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                  : activeTab === 'DEGEN' ? 'bg-purple-600 text-white hover:bg-purple-500' 
+                  : 'bg-white text-black hover:bg-gray-200'
+                }`}
+              >
+                {isProcessing ? 'Processando na Blockchain...' : 'Assinar Transação'}
+              </button>
               </div>
-            )}
+          )}
           </div>
         </div>
       )}
+
+      {txNotification.show && (
+        <div className="fixed bottom-4 right-4 bg-gray-900 border border-green-500 text-white p-4 rounded-lg shadow-lg flex flex-col gap-2 animate-fade-in z-50">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-bold text-green-400">Transação Confirmada</span>
+            <button onClick={() => setTxNotification({show: false, signature: ''})} className="text-gray-500 hover:text-white text-xl leading-none">&times;</button>
+          </div>
+          <a href={`https://solscan.io/tx/${txNotification.signature}?cluster=devnet`} target="_blank" rel="noreferrer" className="text-xs font-mono text-blue-400 hover:underline break-all">
+            {txNotification.signature}
+          </a>
+        </div>
+      )}
+
     </main>
   );
 }

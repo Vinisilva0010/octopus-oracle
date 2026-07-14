@@ -89,6 +89,8 @@ def build_ix(payer, market_pda, d, winning_choice=1):
         AccountMeta(TXLINE_PROGRAM_ID, False, False)
     ], bytes(payload))
 
+VALID_MARKET_KEYS = [1, 2, 3, 4, 7]
+
 async def main():
     client = None
     try:
@@ -99,19 +101,33 @@ async def main():
         keypair = load_keypair(WALLET_PATH)
         client = AsyncClient(RPC_URL)
         
-        market_pda, _ = Pubkey.find_program_address([b"market", struct.pack("<Q", fix_id), bytes([1])], PROGRAM_ID)
+        print("-> Iniciando varredura e liquidação de todos os mercados do AMM...")
         
-        print(f"-> Assinando transacao de settlement...")
-        ix = build_ix(keypair.pubkey(), market_pda, d)
-        bh = (await client.get_latest_blockhash()).value.blockhash
-        msg = MessageV0.try_compile(keypair.pubkey(), [ix], [], bh)
-        tx = VersionedTransaction(msg, [keypair])
-        
-        print(f"-> Enviando para Solana Devnet...")
-        resp = await client.send_transaction(tx, opts=TxOpts(skip_preflight=False))
-        print(f"\n[ SUCESSO ABSOLUTO ] Hash da transacao: {resp.value}")
+        for market_type in VALID_MARKET_KEYS:
+            market_pda, _ = Pubkey.find_program_address(
+                [b"market", struct.pack("<Q", fix_id), bytes([market_type])], 
+                PROGRAM_ID
+            )
+            
+            # Checagem de segurança: Só tenta liquidar se o cofre foi aberto (alguém apostou)
+            acc_info = await client.get_account_info(market_pda)
+            if acc_info.value is None:
+                continue
+
+            print(f"-> Assinando transacao de settlement para o mercado {market_type} (PDA: {market_pda})...")
+            ix = build_ix(keypair.pubkey(), market_pda, d)
+            bh = (await client.get_latest_blockhash()).value.blockhash
+            msg = MessageV0.try_compile(keypair.pubkey(), [ix], [], bh)
+            tx = VersionedTransaction(msg, [keypair])
+
+            try:
+                resp = await client.send_transaction(tx, opts=TxOpts(skip_preflight=False))
+                print(f"[ SUCESSO ABSOLUTO ] Mercado {market_type} liquidado! Hash: {resp.value}")
+            except Exception as e:
+                print(f"[ FALHA NO MERCADO {market_type} ] {e}")
+                
     except Exception as e:
-        print(f"\n[ FALHA ] {e}")
+        print(f"\n[ ERRO FATAL ] {e}")
     finally:
         if client:
             await client.close()
